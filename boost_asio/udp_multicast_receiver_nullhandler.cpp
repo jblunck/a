@@ -33,7 +33,7 @@ struct NullHandler
 
 struct my_connection
 {
-  static void error(const std::string & msg)
+  void error(const std::string & msg)
   {
       std::cerr << "Connection error: " << msg << std::endl;
   }
@@ -42,9 +42,10 @@ struct my_connection
 int main()
 {
   struct NullHandler nh;
-  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh,
+  struct my_connection mc;
+  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc,
 								    "192.168.2.1", false);
-//  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh);
+//  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc);
   receiver.join("239.1.2.3", 12345);
   //receiver.leave("239.1.2.3", 12345);
   receiver.run();

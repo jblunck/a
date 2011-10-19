@@ -14,7 +14,11 @@
  *   if it is known that they orginate from different front-end processors.
  * - Only one thread should service one physical interface at a time. (?)
  */
-
+/*
+ * udp_multicast_receiver:
+ * - run(): thread of handler execution
+ * - join(),leave(): multicast group concept, one socket per port
+ */
 /*
 struct EventHandler
 {
@@ -25,18 +29,20 @@ struct EventHandler
   data_type get_next(data_type prev);
 };
 
-struct ConnectionHandler
+struct StatusListener
 {
-  static void error(const std::string & msg);
+  void error(const std::string & msg);
 };
 */
 
 template <class EventHandler,
-	  class ConnectionHandler>
+	  class StatusListener>
 class udp_multicast_receiver
 {
     typedef typename EventHandler::data_type data_type;
     EventHandler& _handler;
+
+    StatusListener& _status;
 
     boost::asio::io_service _io_service;
 
@@ -48,17 +54,20 @@ class udp_multicast_receiver
     const boost::asio::ip::address _interface_address;
     const bool _is_loopback;
 public:
-    udp_multicast_receiver(EventHandler& handler) :
+    udp_multicast_receiver(EventHandler& handler, StatusListener& listener) :
 	_handler(handler),
+	_status(listener),
 	_interface_address(),
 	_is_loopback(false)
     {
     }
 
     udp_multicast_receiver(EventHandler& handler,
+			   StatusListener& listener,
 			   const char * interface_address,
 			   const bool is_loopback) :
 	_handler(handler),
+	_status(listener),
 	_interface_address(boost::asio::ip::address_v4::from_string(interface_address)),
 	_is_loopback(is_loopback)
     {
@@ -175,7 +184,7 @@ private:
 			      size_t length)
     {
 	if (error) {
-	    ConnectionHandler::error(error.message());
+	    _status.error(error.message());
 	    return;
 	}
 
