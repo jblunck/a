@@ -43,9 +43,8 @@ int main()
 {
   struct NullHandler nh;
   struct my_connection mc;
-  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc,
-								    "192.168.2.1", false);
-//  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc);
+  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc, "127.0.0.1", true);
+  //udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc);
   receiver.join("239.1.2.3", 12345);
   //receiver.leave("239.1.2.3", 12345);
   receiver.run();
