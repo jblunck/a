@@ -4,3 +4,6 @@ find_package(Boost COMPONENTS system)
 
 add_executable(udp_multicast_receiver_example udp_multicast_receiver_example.cpp)
 target_link_libraries(udp_multicast_receiver_example ${Boost_LIBRARIES} pthread)
+
+add_executable(udp_datagram_receiver_example udp_datagram_receiver_example.cpp)
+target_link_libraries(udp_datagram_receiver_example ${Boost_LIBRARIES} pthread)
