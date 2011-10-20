@@ -1,5 +1,7 @@
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
+#ifndef __UDP_MULTICAST_RECEIVER_HPP__
+#define __UDP_MULTICAST_RECEIVER_HPP__
+
+#include "datagram_receiver.hpp"
 #include <map>
 
 /*
@@ -37,15 +39,10 @@ struct StatusListener
 
 template <class EventHandler,
 	  class StatusListener>
-class udp_multicast_receiver
+class udp_multicast_receiver : public datagram_receiver<EventHandler,
+						       StatusListener,
+						       boost::asio::ip::udp>
 {
-    typedef typename EventHandler::data_type data_type;
-    EventHandler& _handler;
-
-    StatusListener& _status;
-
-    boost::asio::io_service _io_service;
-
     typedef std::map<boost::asio::ip::udp::endpoint,
 		     boost::shared_ptr<boost::asio::ip::udp::socket> >::iterator socket_map_iterator;
     std::map<boost::asio::ip::udp::endpoint,
@@ -53,10 +50,11 @@ class udp_multicast_receiver
 
     const boost::asio::ip::address _interface_address;
     const bool _is_loopback;
+
 public:
-    udp_multicast_receiver(EventHandler& handler, StatusListener& listener) :
-	_handler(handler),
-	_status(listener),
+    udp_multicast_receiver(EventHandler& handler,
+			   StatusListener& listener) :
+        datagram_receiver<EventHandler,StatusListener,boost::asio::ip::udp>(handler, listener),
 	_interface_address(),
 	_is_loopback(false)
     {
@@ -66,9 +64,8 @@ public:
 			   StatusListener& listener,
 			   const char * interface_address,
 			   const bool is_loopback) :
-	_handler(handler),
-	_status(listener),
-	_interface_address(boost::asio::ip::address_v4::from_string(interface_address)),
+        datagram_receiver<EventHandler,StatusListener,boost::asio::ip::udp>(handler, listener),
+        _interface_address(boost::asio::ip::address_v4::from_string(interface_address)),
 	_is_loopback(is_loopback)
     {
     }
@@ -81,7 +78,9 @@ public:
 	boost::shared_ptr<boost::asio::ip::udp::socket> socket;
 
 	// FIXME: We should not new here but reserve this on startup!
-	socket.reset(new boost::asio::ip::udp::socket(_io_service));
+	socket.reset(new boost::asio::ip::udp::socket(datagram_receiver<EventHandler,
+						       StatusListener,
+									boost::asio::ip::udp>::get_io_service()));
 
 	boost::asio::ip::udp::endpoint ep(boost::asio::ip::address_v4::from_string(address), port);
 
@@ -127,7 +126,9 @@ public:
 	_socket_map[ep] = socket;
 
 	// start receiving function
-	start_receive(*socket, NULL);
+	datagram_receiver<EventHandler,
+			  StatusListener,
+			  boost::asio::ip::udp>::start_receive(*socket, NULL);
     }
 
     /*
@@ -162,51 +163,6 @@ public:
 	// start_receive(handler)
     }
 
-    void join_socket(int socket)
-    {
-	//_socket.assign(boost::asio::ip::udp::v4(), socket);
-	// start receiving function
-	//start_receive(NULL);
-    }
-
-    void run()
-    {
-	_io_service.run();
-    }
-
-private:
-    /**
-     * IO completion callback
-     */
-    void handle_async_receive(const boost::system::error_code& error,
-			      boost::asio::ip::udp::socket& socket,
-			      data_type buffer,
-			      size_t length)
-    {
-	if (error) {
-	    _status.error(error.message());
-	    return;
-	}
-
-	_handler(buffer, length);
-	start_receive(socket, buffer);
-    }
-
-    void start_receive(boost::asio::ip::udp::socket & socket, data_type buffer)
-    {
-	data_type next = _handler.get_next(buffer);
-	socket.async_receive(boost::asio::buffer(next,
-						 EventHandler::data_type_size()),
-			     boost::bind(&udp_multicast_receiver::handle_async_receive,
-					 this,
-					 boost::asio::placeholders::error,
-					 boost::ref(socket),
-					 boost::ref(next),
-					 boost::asio::placeholders::bytes_transferred));
-    }
-
-    void stop_receive()
-    {
-    }
-
 };
+
+#endif // __UDP_MULTICAST_RECEIVER_HPP__
