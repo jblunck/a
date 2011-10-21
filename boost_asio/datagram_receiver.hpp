@@ -3,6 +3,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/enable_shared_from_this.hpp>
 
 /*
 struct EventHandler
@@ -23,7 +24,8 @@ struct StatusListener
 template <class EventHandler,
 	  class StatusListener,
 	  typename Protocol>
-class datagram_receiver
+class datagram_receiver :
+  public boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol> >
 {
     typedef typename EventHandler::data_type data_type;
     EventHandler& _handler;
@@ -56,7 +58,7 @@ public:
 	socket.async_receive(boost::asio::buffer(next,
 						 EventHandler::data_type_size()),
 			     boost::bind(&datagram_receiver::handle_async_receive,
-					 this,
+					 boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol> >::shared_from_this(),
 					 boost::asio::placeholders::error,
 					 boost::ref(socket),
 					 boost::ref(next),

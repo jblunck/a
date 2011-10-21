@@ -39,14 +39,16 @@ struct my_connection
   }
 };
 
+typedef udp_multicast_receiver<NullHandler,struct my_connection> receiver_t;
+
 int main()
 {
   struct NullHandler nh;
   struct my_connection mc;
-  udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc, "127.0.0.1", true);
-  //udp_multicast_receiver<NullHandler,struct my_connection> receiver(nh, mc);
-  receiver.join("239.1.2.3", 12345);
-  //receiver.leave("239.1.2.3", 12345);
-  receiver.run();
+  boost::shared_ptr<receiver_t> receiver(new receiver_t(nh, mc,
+							"127.0.0.1", true));
+  receiver->join("239.1.2.3", 12345);
+  receiver->leave("239.1.2.3", 12345);
+  receiver->run();
   return 0;
 }

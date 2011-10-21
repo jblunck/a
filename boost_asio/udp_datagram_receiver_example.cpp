@@ -39,12 +39,14 @@ struct my_connection
   }
 };
 
+typedef udp_datagram_receiver<NullHandler,struct my_connection> receiver_t;
+
 int main()
 {
   struct NullHandler nh;
   struct my_connection mc;
-  udp_datagram_receiver<NullHandler,struct my_connection> receiver(nh, mc);
-  receiver.bind(12345);
-  receiver.run();
+  boost::shared_ptr<receiver_t> receiver(new receiver_t(nh, mc));
+  receiver->bind(12345);
+  receiver->run();
   return 0;
 }
