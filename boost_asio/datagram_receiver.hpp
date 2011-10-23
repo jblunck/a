@@ -6,20 +6,32 @@
 #include <boost/enable_shared_from_this.hpp>
 
 /*
-struct EventHandler
-{
-  typedef void data_type;
-  static size_t data_type_size();
-
-  void handle_receive(data_type buffer, std::size_t length);
-  data_type get_next(data_type prev);
-};
-
-struct StatusListener
-{
-  void error(const std::string & msg);
-};
-*/
+ * Object Lifetime of the datagram_receiver<>
+ *
+ * The stream of execution starts when a new socket is created by the join()
+ * method of the datagram_receiver<>. The initialization function is the
+ * start_receiver() method of the datagram_receiver<>.
+ *
+ * The asynchronous handler is a method of the datagram_receiver<> as well and
+ * therefore needs to life longer than the socket and the io_service. The
+ * asynchronous handler is dispatching the real work to the EventHandler
+ * object that exists once per datagram_receiver<>. In case of an error the
+ * StatusListener object is called that exists once per datagram_receiver<>.
+ *
+ * struct EventHandler
+ * {
+ *   typedef void data_type;
+ *   static size_t data_type_size();
+ *
+ *   void handle_receive(data_type buffer, std::size_t length);
+ *   data_type get_next(data_type prev);
+ * };
+ *
+ * struct StatusListener
+ * {
+ *   void error(const std::string & msg);
+ * };
+ */
 
 template <class EventHandler,
 	  class StatusListener,
