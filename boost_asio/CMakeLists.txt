@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 2.6)
 
-find_package(Boost COMPONENTS system)
+find_package(Boost COMPONENTS system unit_test_framework)
 
 add_executable(udp_multicast_receiver_example udp_multicast_receiver_example.cpp)
 target_link_libraries(udp_multicast_receiver_example ${Boost_LIBRARIES} pthread)
 
 add_executable(udp_datagram_receiver_example udp_datagram_receiver_example.cpp)
 target_link_libraries(udp_datagram_receiver_example ${Boost_LIBRARIES} pthread)
+
+add_executable(buffer_policy_test buffer_policy_test.cpp)
+target_link_libraries(buffer_policy_test ${Boost_LIBRARIES} pthread)
