@@ -128,7 +128,7 @@ public:
 	// start receiving function
 	datagram_receiver<EventHandler,
 			  StatusListener,
-			  boost::asio::ip::udp>::start_receive(*socket, NULL);
+			  boost::asio::ip::udp>::start_receive(*socket);
     }
 
     /*

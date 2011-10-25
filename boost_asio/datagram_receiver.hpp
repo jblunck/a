@@ -1,6 +1,8 @@
 #ifndef __DATAGRAM_RECEIVER_HPP__
 #define __DATAGRAM_RECEIVER_HPP__
 
+#include "buffer_policy.hpp"
+
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -20,11 +22,7 @@
  *
  * struct EventHandler
  * {
- *   typedef void data_type;
- *   static size_t data_type_size();
- *
- *   void handle_receive(data_type buffer, std::size_t length);
- *   data_type get_next(data_type prev);
+ *   void operator()(char *buffer, std::size_t length);
  * };
  *
  * struct StatusListener
@@ -35,14 +33,20 @@
 
 template <class EventHandler,
 	  class StatusListener,
-	  typename Protocol>
+	  typename Protocol,
+          typename BufferPolicy = static_buffer_policy<64 * 1024> >
 class datagram_receiver :
-  public boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol> >
+  public boost::enable_shared_from_this<datagram_receiver<EventHandler,
+                                                          StatusListener,
+                                                          Protocol,
+                                                          BufferPolicy> >
 {
-    typedef typename EventHandler::data_type data_type;
     EventHandler& _handler;
 
     StatusListener& _status;
+
+    typedef typename BufferPolicy::data_type data_type;
+    BufferPolicy _policy;
 
     boost::asio::io_service _io_service;
 
@@ -66,15 +70,18 @@ public:
     void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket,
 		       data_type buffer)
     {
-	data_type next = _handler.get_next(buffer);
-	socket.async_receive(boost::asio::buffer(next,
-						 EventHandler::data_type_size()),
+	socket.async_receive(buffer,
 			     boost::bind(&datagram_receiver::handle_async_receive,
-					 boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol> >::shared_from_this(),
+					 boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol,BufferPolicy> >::shared_from_this(),
 					 boost::asio::placeholders::error,
 					 boost::ref(socket),
-					 boost::ref(next),
+					 buffer,
 					 boost::asio::placeholders::bytes_transferred));
+    }
+
+    void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket)
+    {
+        start_receive(socket, _policy());
     }
 
     void stop_receive()
@@ -95,7 +102,8 @@ private:
 	    return;
 	}
 
-	_handler(buffer, length);
+	_handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
+                 length);
 	start_receive(socket, buffer);
     }
 

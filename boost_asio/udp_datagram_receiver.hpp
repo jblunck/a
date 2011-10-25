@@ -87,7 +87,7 @@ public:
 	_socket.bind(ep);
 
 	// start receiving function
-	base_type::start_receive(_socket, NULL);
+	base_type::start_receive(_socket);
     }
 
 };
