@@ -10,3 +10,9 @@ target_link_libraries(udp_datagram_receiver_example ${Boost_LIBRARIES} pthread)
 
 add_executable(buffer_policy_test buffer_policy_test.cpp)
 target_link_libraries(buffer_policy_test ${Boost_LIBRARIES} pthread)
+
+add_executable(local_datagram_receiver_test local_datagram_receiver_test.cpp)
+target_link_libraries(local_datagram_receiver_test ${Boost_LIBRARIES} pthread)
+
+add_executable(local_datagram_receiver_example local_datagram_receiver_example.cpp)
+target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread)
