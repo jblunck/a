@@ -1,4 +1,5 @@
 #include "local_datagram_receiver.hpp"
+#include "read_from.hpp"
 
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MAIN
@@ -45,4 +46,14 @@ BOOST_AUTO_TEST_CASE(shared_offset_buffer_test2)
     if (data_string == result_string)
         BOOST_ERROR(data_string + " == " + result_string);
     BOOST_CHECK_EQUAL(std::string(data_string,3,4), result_string);
+}
+
+BOOST_AUTO_TEST_CASE(read_from_string__fill_buffer)
+{
+    read_from_string h;
+    boost::shared_ptr<std::vector<char> > data;
+    h.fill_buffer(12345, data);
+
+    std::string result(data->begin(), data->end());
+    BOOST_CHECK_EQUAL(result, read_from_string::buf);
 }

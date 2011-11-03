@@ -1,4 +1,6 @@
 #include "local_datagram_receiver.hpp"
+#include "read_from.hpp"
+
 #include <iostream>
 
 struct NullHandler
@@ -25,49 +27,43 @@ struct my_connection
     }
 };
 
-struct read_from_file
+struct LastReceivedBufferHandler
 {
-    // called to start reading the file
-    void get_buffer(const std::string& filename,
-                    boost::shared_ptr<std::vector<char> >& data)
-    {
-        std::ifstream file(filename.c_str(),
-                           std::ios::in|std::ios::binary|std::ios::ate);
-        if (!file.is_open())
-            throw std::runtime_error("Can not open file: " + filename);
+    typedef char * data_type;
+    std::string _buffer;
+    bool _has_received;
 
-        std::size_t size = file.tellg();
-        std::vector<char> *buf = new std::vector<char>(size);
-        file.seekg (0, std::ios::beg);
-        file.read (&(*buf)[0], size);
-        file.close();
-        data.reset(buf);
+    LastReceivedBufferHandler()
+        : _has_received(false)
+    {
     }
 
-    std::size_t get_size(const char * data)
+    void operator()(data_type buffer, std::size_t length)
     {
-        std::size_t size;
+        _buffer = buffer;
+        _has_received = true;
+    }
 
-        size = data[3] - '0';
-        size += (data[2] - '0') * 10;
-        size += (data[1] - '0') * 100;
-        size += (data[0] - '0') * 1000;
-
-        std::cerr << __FUNCTION__ << ": " << size << std::endl;
-        return size;
+    const std::string& get_buffer()
+    {
+        if (!_has_received)
+            throw std::runtime_error("Not received anything");
+        return _buffer;
     }
 };
 
-typedef local_datagram_receiver<NullHandler,
+typedef local_datagram_receiver<LastReceivedBufferHandler,
                                 struct my_connection,
-                                struct read_from_file> receiver_t;
+                                struct read_from_string> receiver_t;
 
 int main()
 {
-    struct NullHandler nh;
+    struct LastReceivedBufferHandler nh;
     struct my_connection mc;
     boost::shared_ptr<receiver_t> receiver(new receiver_t(nh, mc));
     receiver->bind(12345);
     receiver->run();
+
+    std::cout << "Received: " << nh.get_buffer() << std::endl;
     return 0;
 }

@@ -2,9 +2,6 @@
 #define __LOCAL_DATAGRAM_RECEIVER_HPP__
 #include "datagram_receiver.hpp"
 
-#include <boost/lexical_cast.hpp>
-#include <fstream>
-
 // A reference-counted non-modifiable buffer class.
 class shared_offset_buffer
 {
@@ -30,19 +27,19 @@ private:
 };
 
 template <class T>
-class file_reader_handler
-    : public boost::enable_shared_from_this<file_reader_handler<T> >,
+class buffered_datagram_writer
+    : public boost::enable_shared_from_this<buffered_datagram_writer<T> >,
       public T
 {
     boost::asio::local::datagram_protocol::socket _socket;
-    const std::string _filename;
+    const unsigned short _buffer_id;
     boost::shared_ptr<std::vector<char> > _data;
 
 public:
-    file_reader_handler(boost::asio::io_service& io_service,
-                        const std::string& filename)
+    buffered_datagram_writer(boost::asio::io_service& io_service,
+                             const unsigned short buffer_id)
         : _socket(io_service),
-          _filename(filename)
+          _buffer_id(buffer_id)
     {
     }
 
@@ -51,42 +48,52 @@ public:
         return _socket;
     }
 
-    // called to start reading the file
+    // called to kick-off the sending of datagrams
     void start()
     {
-        T::get_buffer(_filename, _data);
+        T::fill_buffer(_buffer_id, _data);
 
         // kick off first write
         boost::system::error_code ec;
         handle_write(ec, 0);
     }
 
-    // called to start reading the file
-    void get_buffer(const std::string& filename,
-                    boost::shared_ptr<std::vector<char> >& data);
+    /*
+     * Following member functions need to be implemented by <T> class:
+     */
 
+    // called once to initially fill the internal buffers with data to send
+    void fill_buffer(const unsigned short buffer_id,
+                     boost::shared_ptr<std::vector<char> >& data);
+
+    // get size of next message starting at offset
     std::size_t get_size(const char * data);
+    // get offset to next payload for message starting at offset
+    std::size_t get_offset(const char * data);
 
 private:
     // called when our write finished
     void handle_write(const boost::system::error_code& ec, std::size_t offset)
     {
-        std::size_t size = T::get_size(&(*_data)[offset]);
-        if (size <= 0) {
+        std::size_t msg_size = T::get_size(&(*_data)[offset]);
+        if (msg_size <= 0) {
             /*
              * This is the end my friend: lets stop the io_service() so that
-             * we do not wait in run() infinitely.
+             * we do not wait in run() infinitely. But poll() all ready work
+             * first.
              */
+            _socket.get_io_service().poll();
             _socket.get_io_service().stop();
             return;
         }
 
-        shared_offset_buffer buffer(_data, offset+4, size);
+        std::size_t msg_offset = T::get_offset(&(*_data)[offset]);
+        shared_offset_buffer buffer(_data, offset + msg_offset, msg_size);
         _socket.async_send(buffer,
-                           boost::bind(&file_reader_handler::handle_write,
-                                       boost::enable_shared_from_this<file_reader_handler<T> >::shared_from_this(),
+                           boost::bind(&buffered_datagram_writer::handle_write,
+                                       boost::enable_shared_from_this<buffered_datagram_writer<T> >::shared_from_this(),
                                        boost::asio::placeholders::error,
-                                       offset+4+size));
+                                       offset + msg_offset + msg_size));
     }
 };
 
@@ -123,10 +130,9 @@ public:
      */
     void bind(const unsigned short port)
     {
-        // open new socket for reading in test file
-        boost::shared_ptr<file_reader_handler<T> > reader;
-        reader.reset(new file_reader_handler<T>(base_type::get_io_service(),
-                                             boost::lexical_cast<std::string>(port) + ".dat"));
+        boost::shared_ptr<buffered_datagram_writer<T> > reader;
+        reader.reset(new buffered_datagram_writer<T>(base_type::get_io_service(),
+                                                     port));
 
 	boost::system::error_code ec;
         boost::asio::local::connect_pair(_socket, reader->socket(), ec);
