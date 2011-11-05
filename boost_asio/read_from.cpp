@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 // called to start reading the file
 void read_from_file::fill_buffer(const unsigned short port,

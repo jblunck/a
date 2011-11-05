@@ -1,6 +1,8 @@
 #ifndef __DATAGRAM_RECEIVER_HANDLER_HPP__
 #define __DATAGRAM_RECEIVER_HANDLER_HPP__
 
+#include <iostream>
+
 struct nop_handler
 {
     typedef char * data_type;
