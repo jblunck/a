@@ -109,12 +109,14 @@ class local_datagram_receiver :
 {
     typedef datagram_receiver<EventHandler,StatusListener,boost::asio::local::datagram_protocol> base_type;
     boost::asio::local::datagram_protocol::socket _socket;
+    unsigned short _bind_port;
 
 public:
     local_datagram_receiver(EventHandler& handler,
 			  StatusListener& listener) :
         base_type(handler, listener),
-	_socket(base_type::get_io_service())
+	_socket(base_type::get_io_service()),
+        _bind_port(0)
     {
     }
 
@@ -123,7 +125,8 @@ public:
                             const char * /* interface_address */,
                             const bool /* is_loopback */) :
         base_type(handler, listener),
-	_socket(base_type::get_io_service())
+	_socket(base_type::get_io_service()),
+        _bind_port(0)
     {
     }
 
@@ -132,6 +135,10 @@ public:
      */
     void bind(const unsigned short port)
     {
+        if (_bind_port)
+            throw std::runtime_error("Already bound to port " + _bind_port);
+        _bind_port = port;
+
         boost::shared_ptr<buffered_datagram_writer<T> > reader;
         reader.reset(new buffered_datagram_writer<T>(base_type::get_io_service(),
                                                      port));
@@ -149,6 +156,9 @@ public:
 
     void unbind(const unsigned short port)
     {
+        if (port != _bind_port)
+            throw std::runtime_error("Not bound to port " + port);
+
         _socket.cancel();
         _socket.close();
     }

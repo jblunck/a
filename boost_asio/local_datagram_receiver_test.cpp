@@ -97,3 +97,17 @@ BOOST_AUTO_TEST_CASE(local_datagram_receiver__test1)
     receiver->run();
     BOOST_CHECK_EQUAL(nh.get_buffer(), std::string(read_from_string::buf,4,10));
 }
+
+typedef local_datagram_receiver<struct nop_handler,
+                                struct cerr_status_listener,
+                                struct read_from_string> receiver2_t;
+
+BOOST_AUTO_TEST_CASE(local_datagram_receiver__bind_throws)
+{
+    struct nop_handler nh;
+    struct cerr_status_listener mc;
+    boost::shared_ptr<receiver2_t> receiver(new receiver2_t(nh, mc));
+    receiver->bind(12345);
+    BOOST_CHECK_THROW(receiver->bind(12345), std::runtime_error);
+    BOOST_CHECK_THROW(receiver->unbind(1), std::runtime_error);
+}
