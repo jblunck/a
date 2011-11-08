@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 find_package(Boost COMPONENTS system unit_test_framework)
 
 add_executable(udp_multicast_receiver_example udp_multicast_receiver_example.cpp)
