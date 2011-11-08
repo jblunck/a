@@ -99,7 +99,8 @@ private:
 			      size_t length)
     {
 	if (error) {
-	    _status.error(error.message());
+            if (error != boost::asio::error::operation_aborted)
+                _status.error(error.message());
 	    return;
 	}
 

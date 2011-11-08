@@ -82,6 +82,8 @@ private:
              * we do not wait in run() infinitely. But poll() all ready work
              * first.
              */
+            _socket.cancel();
+            _socket.close();
             _socket.get_io_service().poll();
             _socket.get_io_service().stop();
             return;
@@ -145,6 +147,11 @@ public:
 	base_type::start_receive(_socket);
     }
 
+    void unbind(const unsigned short port)
+    {
+        _socket.cancel();
+        _socket.close();
+    }
 };
 
 #endif // __LOCAL_DATAGRAM_RECEIVER_HPP__

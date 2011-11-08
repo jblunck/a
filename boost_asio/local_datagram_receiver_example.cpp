@@ -27,5 +27,13 @@ int main()
     receiver->run();
     uint64_t t = s.elapsed_ns();
     std::cout << ( MESSAGES_NR * 1e9 ) / t << " msg/s" << std::endl;
+
+    // The following is necessary to free all used memory:
+    // 1.) cancel the handler
+    receiver->unbind(12345);
+
+    // 2.) execute the handler to process cancelation
+    receiver->get_io_service().reset();
+    receiver->get_io_service().poll();
     return 0;
 }
