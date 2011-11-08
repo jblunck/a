@@ -6,6 +6,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/utility.hpp>
 
 /*
  * Object Lifetime of the datagram_receiver<>
@@ -35,7 +36,7 @@ template <class EventHandler,
 	  class StatusListener,
 	  typename Protocol,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
-class datagram_receiver :
+class datagram_receiver : boost::noncopyable,
   public boost::enable_shared_from_this<datagram_receiver<EventHandler,
                                                           StatusListener,
                                                           Protocol,
