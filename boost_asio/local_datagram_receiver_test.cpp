@@ -1,5 +1,6 @@
 #include "local_datagram_receiver.hpp"
 #include "read_from.hpp"
+#include "datagram_receiver_handler.hpp"
 
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MAIN
@@ -82,3 +83,17 @@ struct LastReceivedBufferHandler
         return _buffer;
     }
 };
+
+typedef local_datagram_receiver<struct LastReceivedBufferHandler,
+                                struct cerr_status_listener,
+                                struct read_from_string> receiver_t;
+
+BOOST_AUTO_TEST_CASE(local_datagram_receiver__test1)
+{
+    struct LastReceivedBufferHandler nh;
+    struct cerr_status_listener mc;
+    boost::shared_ptr<receiver_t> receiver(new receiver_t(nh, mc));
+    receiver->bind(12345);
+    receiver->run();
+    BOOST_CHECK_EQUAL(nh.get_buffer(), std::string(read_from_string::buf,4,10));
+}
