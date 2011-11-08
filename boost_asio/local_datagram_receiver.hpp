@@ -2,6 +2,8 @@
 #define __LOCAL_DATAGRAM_RECEIVER_HPP__
 #include "datagram_receiver.hpp"
 
+#include <boost/thread.hpp>
+
 // A reference-counted non-modifiable buffer class.
 class shared_offset_buffer
 {
@@ -31,16 +33,33 @@ class buffered_datagram_writer
     : public boost::enable_shared_from_this<buffered_datagram_writer<T> >,
       public T
 {
+    boost::reference_wrapper<boost::asio::io_service> _io_service;
+    boost::asio::io_service _io;
     boost::asio::local::datagram_protocol::socket _socket;
     const unsigned short _buffer_id;
     boost::shared_ptr<std::vector<char> > _data;
 
+    boost::shared_ptr<boost::asio::io_service::work> _work;
+    boost::shared_ptr<boost::thread> _thread;
 public:
     buffered_datagram_writer(boost::asio::io_service& io_service,
                              const unsigned short buffer_id)
-        : _socket(io_service),
-          _buffer_id(buffer_id)
+        : _io_service(io_service),
+          _socket(_io),
+          _buffer_id(buffer_id),
+          _work(new boost::asio::io_service::work(_io)),
+          _thread(new boost::thread(boost::bind(&boost::asio::io_service::run,
+                                                &_io)))
     {
+    }
+
+    ~buffered_datagram_writer()
+    {
+        _work.reset();
+/*
+        if (_thread)
+            _thread->join();
+*/
     }
 
     boost::asio::local::datagram_protocol::socket& socket()
@@ -77,15 +96,16 @@ private:
     {
         std::size_t msg_size = T::get_size(&(*_data)[offset]);
         if (msg_size <= 0) {
-            /*
-             * This is the end my friend: lets stop the io_service() so that
-             * we do not wait in run() infinitely. But poll() all ready work
-             * first.
-             */
+            /* This is the end my friend: lets close our socket! */
             _socket.cancel();
             _socket.close();
-            _socket.get_io_service().poll();
-            _socket.get_io_service().stop();
+
+            /*
+             * Lets stop the io_service so that we do not wait in run()
+             * infinitely. But poll() all ready work first.
+             */
+            boost::unwrap_ref(_io_service).poll();
+            boost::unwrap_ref(_io_service).stop();
             return;
         }
 
@@ -140,7 +160,7 @@ public:
         _bind_port = port;
 
         boost::shared_ptr<buffered_datagram_writer<T> > reader;
-        reader.reset(new buffered_datagram_writer<T>(base_type::get_io_service(),
+        reader.reset(new buffered_datagram_writer<T>(_socket.get_io_service(),
                                                      port));
 
 	boost::system::error_code ec;
@@ -148,10 +168,11 @@ public:
 	if (ec)
 	    throw std::runtime_error(ec.message());
 
-        reader->start();
-
 	// start receiving function
 	base_type::start_receive(_socket);
+
+        boost::asio::io_service& io = _socket.get_io_service();
+        io.post(boost::bind(&buffered_datagram_writer<T>::start, reader));
     }
 
     void unbind(const unsigned short port)
