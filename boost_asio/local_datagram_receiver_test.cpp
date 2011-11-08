@@ -57,3 +57,28 @@ BOOST_AUTO_TEST_CASE(read_from_string__fill_buffer)
     std::string result(data->begin(), data->end());
     BOOST_CHECK_EQUAL(result, read_from_string::buf);
 }
+
+struct LastReceivedBufferHandler
+{
+    typedef char * data_type;
+    std::string _buffer;
+    bool _has_received;
+
+    LastReceivedBufferHandler()
+        : _has_received(false)
+    {
+    }
+
+    void operator()(data_type buffer, std::size_t length)
+    {
+        _buffer = buffer;
+        _has_received = true;
+    }
+
+    const std::string& get_buffer()
+    {
+        if (!_has_received)
+            throw std::runtime_error("Not received anything");
+        return _buffer;
+    }
+};

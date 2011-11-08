@@ -15,4 +15,4 @@ add_executable(local_datagram_receiver_test local_datagram_receiver_test.cpp rea
 target_link_libraries(local_datagram_receiver_test ${Boost_LIBRARIES} pthread)
 
 add_executable(local_datagram_receiver_example local_datagram_receiver_example.cpp read_from.cpp)
-target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread)
+target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread rt)
