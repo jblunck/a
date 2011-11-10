@@ -84,9 +84,9 @@ struct LastReceivedBufferHandler
     }
 };
 
-typedef local_datagram_receiver<struct LastReceivedBufferHandler,
-                                struct cerr_status_listener,
-                                struct read_from_string> receiver_t;
+typedef local_datagram_receiver<struct read_from_string,
+                                struct LastReceivedBufferHandler,
+                                struct cerr_status_listener> receiver_t;
 
 BOOST_AUTO_TEST_CASE(local_datagram_receiver__test1)
 {
@@ -98,9 +98,9 @@ BOOST_AUTO_TEST_CASE(local_datagram_receiver__test1)
     BOOST_CHECK_EQUAL(nh.get_buffer(), std::string(read_from_string::buf,4,10));
 }
 
-typedef local_datagram_receiver<struct nop_handler,
-                                struct cerr_status_listener,
-                                struct read_from_string> receiver2_t;
+typedef local_datagram_receiver<struct read_from_string,
+                                struct nop_handler,
+                                struct cerr_status_listener> receiver2_t;
 
 BOOST_AUTO_TEST_CASE(local_datagram_receiver__bind_throws)
 {

@@ -99,15 +99,20 @@ private:
     }
 };
 
-template <class EventHandler,
-	  class StatusListener,
-          class T>
+template <class T,
+          class EventHandler,
+          class StatusListener,
+          template <class> class TimeoutPolicy = never_timeout_policy>
 class local_datagram_receiver :
     public datagram_receiver<EventHandler,
                              StatusListener,
-                             boost::asio::local::datagram_protocol>
+                             boost::asio::local::datagram_protocol,
+                             TimeoutPolicy>
 {
-    typedef datagram_receiver<EventHandler,StatusListener,boost::asio::local::datagram_protocol> base_type;
+    typedef datagram_receiver<EventHandler,
+                              StatusListener,
+                              boost::asio::local::datagram_protocol,
+                              TimeoutPolicy> base_type;
     boost::asio::local::datagram_protocol::socket _socket;
     unsigned short _bind_port;
 

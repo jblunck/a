@@ -2,6 +2,7 @@
 #define __DATAGRAM_RECEIVER_HPP__
 
 #include "buffer_policy.hpp"
+#include "timeout_policy.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -35,13 +36,21 @@
 template <class EventHandler,
 	  class StatusListener,
 	  typename Protocol,
+          template <class> class TimeoutPolicy = never_timeout_policy,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
 class datagram_receiver : boost::noncopyable,
   public boost::enable_shared_from_this<datagram_receiver<EventHandler,
                                                           StatusListener,
                                                           Protocol,
+                                                          TimeoutPolicy,
                                                           BufferPolicy> >
 {
+    typedef boost::enable_shared_from_this<datagram_receiver<EventHandler,
+                                                             StatusListener,
+                                                             Protocol,
+                                                             TimeoutPolicy,
+                                                             BufferPolicy> > super_type;
+
     EventHandler& _handler;
 
     StatusListener& _status;
@@ -52,9 +61,10 @@ class datagram_receiver : boost::noncopyable,
     boost::asio::io_service _io_service;
 
 public:
-    datagram_receiver(EventHandler& handler, StatusListener& listener) :
-	_handler(handler),
-	_status(listener)
+    datagram_receiver(EventHandler& handler,
+		      StatusListener& listener)
+	: _handler(handler),
+	  _status(listener)
     {
     }
 
@@ -68,21 +78,46 @@ public:
 	_io_service.run();
     }
 
-    void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket,
-		       data_type buffer)
+    struct datagram_receiver_session
     {
-	socket.async_receive(buffer,
-			     boost::bind(&datagram_receiver::handle_async_receive,
-					 boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol,BufferPolicy> >::shared_from_this(),
-					 boost::asio::placeholders::error,
-					 boost::ref(socket),
-					 buffer,
-					 boost::asio::placeholders::bytes_transferred));
+        typedef boost::asio::basic_datagram_socket<Protocol> socket_type;
+        boost::reference_wrapper<socket_type> _socket;
+        boost::shared_ptr<TimeoutPolicy<Protocol> > _timeout;
+
+        datagram_receiver_session(socket_type & socket)
+            : _socket(socket),
+              _timeout(new TimeoutPolicy<Protocol>(socket))
+        {
+        }
+
+        socket_type & get_socket()
+        {
+            return _socket;
+        }
+
+        void keep_alive()
+        {
+            (*_timeout)();
+        }
+    };
+
+    typedef struct datagram_receiver_session session_type;
+
+    void start_receive(session_type session, data_type buffer)
+    {
+        typename session_type::socket_type& s = session.get_socket();
+	s.async_receive(buffer,
+                        boost::bind(&datagram_receiver::handle_async_receive,
+                                    super_type::shared_from_this(),
+                                    boost::asio::placeholders::error,
+                                    session,
+                                    buffer,
+                                    boost::asio::placeholders::bytes_transferred));
     }
 
     void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket)
     {
-        start_receive(socket, _policy());
+	start_receive(session_type(socket), _policy());
     }
 
     void stop_receive()
@@ -94,7 +129,7 @@ private:
      * IO completion callback
      */
     void handle_async_receive(const boost::system::error_code& error,
-			      boost::asio::basic_datagram_socket<Protocol>& socket,
+			      session_type session,
 			      data_type buffer,
 			      size_t length)
     {
@@ -104,9 +139,12 @@ private:
 	    return;
 	}
 
-	_handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
-                 length);
-	start_receive(socket, buffer);
+	// trigger session on every receive
+        session.keep_alive();
+
+	_handler(boost::asio::buffer_cast<char *>(*buffer.begin()), length);
+
+	start_receive(session, buffer);
     }
 
 };
