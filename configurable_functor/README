@@ -1,0 +1,26 @@
+This is a collection of codes how to implement a runtime configurable functor
+that is fast to call as well.
+
+Probably the virtual function approach is slightly faster than the template
+version but it is as well ugly to progamm against.
+
+[jbl@localhost build]$ time ./functor_bind >/dev/null
+
+real	0m5.654s
+user	0m3.915s
+sys	0m0.034s
+[jbl@localhost build]$ time ./functor_funcpointer >/dev/null
+
+real	0m4.175s
+user	0m2.937s
+sys	0m0.023s
+[jbl@localhost build]$ time ./functor_virt >/dev/null
+
+real	0m3.129s
+user	0m2.215s
+sys	0m0.009s
+[jbl@localhost build]$ time ./functor_template >/dev/null
+
+real	0m3.330s
+user	0m2.306s
+sys	0m0.012s
