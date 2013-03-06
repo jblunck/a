@@ -38,6 +38,9 @@ template <class EventHandler,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
 class datagram_receiver : boost::noncopyable
 {
+    typedef datagram_receiver<EventHandler, StatusListener, Protocol,
+                              BufferPolicy> datagram_receiver_type;
+
     EventHandler& _handler;
 
     StatusListener& _status;
@@ -72,6 +75,8 @@ public:
     public boost::enable_shared_from_this<datagram_receiver_session>
   {
     typedef boost::enable_shared_from_this<datagram_receiver_session> super_type;
+    // reference to our datagram_receiver
+    datagram_receiver_type& _receiver;
 
     typedef boost::asio::basic_datagram_socket<Protocol> socket_type;
     socket_type& _socket;
@@ -83,15 +88,22 @@ public:
     StatusListener& _status;
 
   public:
-    datagram_receiver_session(socket_type & socket,
+    datagram_receiver_session(datagram_receiver_type& receiver,
+			      socket_type & socket,
 			      data_type & buffer,
 			      EventHandler& handler,
 			      StatusListener& status)
-      : _socket(socket),
+      : _receiver(receiver),
+	_socket(socket),
 	_buffer(buffer),
 	_handler(handler),
 	_status(status)
     {
+    }
+
+    datagram_receiver_type& get_datagram_receiver()
+    {
+        return _receiver;
     }
 
     socket_type & get_socket()
@@ -149,7 +161,7 @@ public:
   {
     data_type buffer(_policy());
 
-    session_type s(new datagram_receiver_session(socket, buffer,
+    session_type s(new datagram_receiver_session(*this, socket, buffer,
                                                  _handler, _status));
     s->start_receive(buffer);
   }
