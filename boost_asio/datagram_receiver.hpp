@@ -2,6 +2,7 @@
 #define __DATAGRAM_RECEIVER_HPP__
 
 #include "buffer_policy.hpp"
+#include "timeout_policy.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -35,6 +36,7 @@
 template <class EventHandler,
 	  class StatusListener,
 	  typename Protocol,
+          template <class> class TimeoutPolicy = never_timeout_policy,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
 class datagram_receiver : boost::noncopyable
 {
@@ -81,6 +83,8 @@ public:
     typedef boost::asio::basic_datagram_socket<Protocol> socket_type;
     socket_type& _socket;
 
+    TimeoutPolicy<Protocol>* _timeout;
+
     // our own copy of this buffer instance
     data_type _buffer;
 
@@ -90,15 +94,22 @@ public:
   public:
     datagram_receiver_session(datagram_receiver_type& receiver,
 			      socket_type & socket,
+                              TimeoutPolicy<Protocol>* timeout,
 			      data_type & buffer,
 			      EventHandler& handler,
 			      StatusListener& status)
       : _receiver(receiver),
 	_socket(socket),
+	_timeout(timeout),
 	_buffer(buffer),
 	_handler(handler),
 	_status(status)
     {
+    }
+
+    ~datagram_receiver_session()
+    {
+        delete _timeout;
     }
 
     datagram_receiver_type& get_datagram_receiver()
@@ -129,6 +140,8 @@ public:
               _status.error(error_code.message());
           return;
       }
+
+      (*_timeout)();
 
       data_type& buffer = get_buffer();
       _handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
@@ -161,8 +174,10 @@ public:
   {
     data_type buffer(_policy());
 
-    session_type s(new datagram_receiver_session(*this, socket, buffer,
-                                                 _handler, _status));
+    TimeoutPolicy<Protocol>* timeout(new TimeoutPolicy<Protocol>(socket));
+
+    session_type s(new datagram_receiver_session(*this, socket, timeout,
+                                                 buffer, _handler, _status));
     s->start_receive(buffer);
   }
 
