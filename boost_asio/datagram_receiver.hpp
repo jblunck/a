@@ -36,11 +36,7 @@ template <class EventHandler,
 	  class StatusListener,
 	  typename Protocol,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
-class datagram_receiver : boost::noncopyable,
-  public boost::enable_shared_from_this<datagram_receiver<EventHandler,
-                                                          StatusListener,
-                                                          Protocol,
-                                                          BufferPolicy> >
+class datagram_receiver : boost::noncopyable
 {
     EventHandler& _handler;
 
@@ -68,47 +64,99 @@ public:
 	_io_service.run();
     }
 
-    void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket,
-		       data_type buffer)
+  /*
+   * Object of the session class need to be cheap to copy because they are
+   * copied into the asynchronous callback of the ASIO library.
+   */
+  class datagram_receiver_session:
+    public boost::enable_shared_from_this<datagram_receiver_session>
+  {
+    typedef boost::enable_shared_from_this<datagram_receiver_session> super_type;
+
+    typedef boost::asio::basic_datagram_socket<Protocol> socket_type;
+    socket_type& _socket;
+
+    // our own copy of this buffer instance
+    data_type _buffer;
+
+    EventHandler& _handler;
+    StatusListener& _status;
+
+  public:
+    datagram_receiver_session(socket_type & socket,
+			      data_type & buffer,
+			      EventHandler& handler,
+			      StatusListener& status)
+      : _socket(socket),
+	_buffer(buffer),
+	_handler(handler),
+	_status(status)
     {
-	socket.async_receive(buffer,
-			     boost::bind(&datagram_receiver::handle_async_receive,
-					 boost::enable_shared_from_this<datagram_receiver<EventHandler,StatusListener,Protocol,BufferPolicy> >::shared_from_this(),
-					 boost::asio::placeholders::error,
-					 boost::ref(socket),
-					 buffer,
-					 boost::asio::placeholders::bytes_transferred));
     }
 
-    void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket)
+    socket_type & get_socket()
     {
-        start_receive(socket, _policy());
+      return _socket;
     }
 
-    void stop_receive()
+  private:
+    data_type & get_buffer()
     {
+      return _buffer;
     }
 
-private:
     /**
-     * IO completion callback
+     * IO completion callback expected by ASIO
      */
-    void handle_async_receive(const boost::system::error_code& error,
-			      boost::asio::basic_datagram_socket<Protocol>& socket,
-			      data_type buffer,
-			      size_t length)
+    void handle_async_receive(const boost::system::error_code& error_code,
+                              std::size_t bytes_transfered)
     {
-	if (error) {
-            if (error != boost::asio::error::operation_aborted)
-                _status.error(error.message());
-	    return;
-	}
+      // one central status listener per datagram_receiver
+      if (error_code) {
+          if (error_code != boost::asio::error::operation_aborted)
+              _status.error(error_code.message());
+          return;
+      }
 
-	_handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
-                 length);
-	start_receive(socket, buffer);
+      data_type& buffer = get_buffer();
+      _handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
+               bytes_transfered);
+
+      start_receive(buffer);
     }
 
+  public:
+    /*
+     * Function to start the next asynchronous receive operation
+     */
+    void start_receive(data_type buffer)
+    {
+      socket_type& s = get_socket();
+
+      // register this as read handler function object
+      s.async_receive(buffer,
+		      boost::bind(&datagram_receiver_session::handle_async_receive,
+				  datagram_receiver_session::shared_from_this(),
+				  boost::asio::placeholders::error,
+				  boost::asio::placeholders::bytes_transferred)
+		      );
+    }
+  };
+
+  typedef boost::shared_ptr<datagram_receiver_session> session_type;
+
+  void start_receive(boost::asio::basic_datagram_socket<Protocol>& socket)
+  {
+    data_type buffer(_policy());
+
+    session_type s(new datagram_receiver_session(socket, buffer,
+                                                 _handler, _status));
+    s->start_receive(buffer);
+  }
+
+  void stop_receive()
+  {
+  }
 };
 
 #endif // __DATAGRAM_RECEIVER_HPP__
