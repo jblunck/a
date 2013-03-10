@@ -16,6 +16,11 @@ target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread
 enable_testing()
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
+add_executable(timeout_policy_test timeout_policy_test.cpp)
+target_link_libraries(timeout_policy_test ${Boost_LIBRARIES} pthread rt)
+add_test(timeout_policy_test ${CMAKE_CURRENT_BINARY_DIR}/timeout_policy_test)
+add_dependencies(check timeout_policy_test)
+
 add_executable(buffer_policy_test buffer_policy_test.cpp)
 target_link_libraries(buffer_policy_test ${Boost_LIBRARIES} pthread)
 
