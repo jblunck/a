@@ -10,11 +10,20 @@ target_link_libraries(udp_multicast_receiver_example ${Boost_LIBRARIES} pthread)
 add_executable(udp_datagram_receiver_example udp_datagram_receiver_example.cpp)
 target_link_libraries(udp_datagram_receiver_example ${Boost_LIBRARIES} pthread)
 
+add_executable(local_datagram_receiver_example local_datagram_receiver_example.cpp read_from.cpp)
+target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread rt)
+
+enable_testing()
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+
 add_executable(buffer_policy_test buffer_policy_test.cpp)
 target_link_libraries(buffer_policy_test ${Boost_LIBRARIES} pthread)
+
+add_test(buffer_policy_test ${CMAKE_CURRENT_BINARY_DIR}/buffer_policy_test)
+add_dependencies(check buffer_policy_test)
 
 add_executable(local_datagram_receiver_test local_datagram_receiver_test.cpp read_from.cpp)
 target_link_libraries(local_datagram_receiver_test ${Boost_LIBRARIES} pthread)
 
-add_executable(local_datagram_receiver_example local_datagram_receiver_example.cpp read_from.cpp)
-target_link_libraries(local_datagram_receiver_example ${Boost_LIBRARIES} pthread rt)
+add_test(local_datagram_receiver_test ${CMAKE_CURRENT_BINARY_DIR}/local_datagram_receiver_test)
+add_dependencies(check local_datagram_receiver_test)
