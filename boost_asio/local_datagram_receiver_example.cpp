@@ -4,15 +4,6 @@
 #include "../stop_watch.hpp"
 #include <iostream>
 
-template <typename T>
-struct one_second_policy : always_timeout_policy<T, 1>
-{
-    one_second_policy(boost::asio::basic_datagram_socket<T> & socket)
-        : always_timeout_policy<T, 1>(socket)
-    {
-    }
-};
-
 typedef local_datagram_receiver<struct read_from_string,
                                 struct nop_handler,
                                 struct cerr_status_listener,
