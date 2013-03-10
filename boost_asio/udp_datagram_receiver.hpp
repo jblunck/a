@@ -38,12 +38,16 @@ struct StatusListener
 // turn to use template basic_datagram_socket<Protocol>
 
 template <class EventHandler,
-	  class StatusListener>
+          class StatusListener,
+          template <class> class TimeoutPolicy = never_timeout_policy>
 class udp_datagram_receiver : public datagram_receiver<EventHandler,
 						       StatusListener,
-						       boost::asio::ip::udp>
+                                                       boost::asio::ip::udp,
+                                                       TimeoutPolicy>
 {
-    typedef datagram_receiver<EventHandler,StatusListener,boost::asio::ip::udp> base_type;
+    typedef datagram_receiver<EventHandler,StatusListener,
+                              boost::asio::ip::udp,
+                              TimeoutPolicy> base_type;
     boost::asio::ip::udp::socket _socket;
     const boost::asio::ip::address _interface_address;
     const bool _is_loopback;
@@ -51,7 +55,7 @@ class udp_datagram_receiver : public datagram_receiver<EventHandler,
 public:
     udp_datagram_receiver(EventHandler& handler,
 			  StatusListener& listener) :
-        datagram_receiver<EventHandler,StatusListener,boost::asio::ip::udp>(handler, listener),
+        base_type(handler, listener),
 	_socket(base_type::get_io_service()),
 	_interface_address(),
 	_is_loopback(false)
@@ -62,7 +66,7 @@ public:
 			  StatusListener& listener,
 			  const char * interface_address,
 			  const bool is_loopback) :
-        datagram_receiver<EventHandler,StatusListener,boost::asio::ip::udp>(handler, listener),
+        base_type(handler, listener),
 	_socket(base_type::get_io_service()),
         _interface_address(boost::asio::ip::address_v4::from_string(interface_address)),
 	_is_loopback(is_loopback)

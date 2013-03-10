@@ -39,9 +39,10 @@ template <class EventHandler,
           template <class> class TimeoutPolicy = never_timeout_policy,
           typename BufferPolicy = static_buffer_policy<64 * 1024> >
 class datagram_receiver : boost::noncopyable
+                        , public TimeoutPolicy<Protocol>
 {
     typedef datagram_receiver<EventHandler, StatusListener, Protocol,
-                              BufferPolicy> datagram_receiver_type;
+                              TimeoutPolicy, BufferPolicy> datagram_receiver_type;
 
     EventHandler& _handler;
 
@@ -74,7 +75,8 @@ public:
    * copied into the asynchronous callback of the ASIO library.
    */
   class datagram_receiver_session:
-    public boost::enable_shared_from_this<datagram_receiver_session>
+        public boost::enable_shared_from_this<datagram_receiver_session>,
+        public TimeoutPolicy<Protocol>::functor_type
   {
     typedef boost::enable_shared_from_this<datagram_receiver_session> super_type;
     // reference to our datagram_receiver
@@ -82,8 +84,6 @@ public:
 
     typedef boost::asio::basic_datagram_socket<Protocol> socket_type;
     socket_type& _socket;
-
-    TimeoutPolicy<Protocol>* _timeout;
 
     // our own copy of this buffer instance
     data_type _buffer;
@@ -94,22 +94,16 @@ public:
   public:
     datagram_receiver_session(datagram_receiver_type& receiver,
 			      socket_type & socket,
-                              TimeoutPolicy<Protocol>* timeout,
 			      data_type & buffer,
 			      EventHandler& handler,
 			      StatusListener& status)
-      : _receiver(receiver),
+        : TimeoutPolicy<Protocol>::functor_type(receiver, socket),
+	_receiver(receiver),
 	_socket(socket),
-	_timeout(timeout),
 	_buffer(buffer),
 	_handler(handler),
 	_status(status)
     {
-    }
-
-    ~datagram_receiver_session()
-    {
-        delete _timeout;
     }
 
     datagram_receiver_type& get_datagram_receiver()
@@ -141,7 +135,7 @@ public:
           return;
       }
 
-      (*_timeout)();
+      TimeoutPolicy<Protocol>::functor_type::operator()();
 
       data_type& buffer = get_buffer();
       _handler(boost::asio::buffer_cast<char *>(*buffer.begin()),
@@ -174,10 +168,8 @@ public:
   {
     data_type buffer(_policy());
 
-    TimeoutPolicy<Protocol>* timeout(new TimeoutPolicy<Protocol>(socket));
-
-    session_type s(new datagram_receiver_session(*this, socket, timeout,
-                                                 buffer, _handler, _status));
+    session_type s(new datagram_receiver_session(*this, socket, buffer,
+                                                 _handler, _status));
     s->start_receive(buffer);
   }
 
